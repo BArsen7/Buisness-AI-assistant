@@ -2,12 +2,11 @@
 PyQt6>=6.6.0
 
 # LLM Client
+httpx>=0.25.0
 openai>=1.12.0
-requests>=2.31.0
 
 # Database
 chromadb>=0.4.22
-sqlite3
 
 # Export
 python-pptx>=0.6.23
@@ -16,6 +15,9 @@ reportlab>=4.0.0
 # Utilities
 python-dotenv>=1.0.0
 pydantic>=2.5.0
+
+# Build
+pyinstaller>=6.0.0
 
 # Testing (optional)
 pytest>=7.4.0

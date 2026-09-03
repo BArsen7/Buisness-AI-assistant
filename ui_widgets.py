@@ -10,12 +10,14 @@ from dataclasses import dataclass
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, 
     QPushButton, QComboBox, QLabel, QSplitter,
-    QFrame, QScrollArea, QGroupBox
+    QFrame, QScrollArea, QGroupBox, QFileDialog, QMessageBox
 )
 from PyQt6.QtCore import pyqtSignal, Qt, QPropertyAnimation, QEasingCurve, QSize
 from PyQt6.QtGui import QFont, QIcon
 
 from models import AgentRole, Chat
+from ui.worker import ChatWorker, PromptWorker
+from exporters import export_to_pdf, export_to_pptx, export_markdown_to_structured_slides
 
 
 @dataclass
@@ -47,20 +49,22 @@ class PromptEngineerWidget(QWidget):
     Виджет промпт-инженера для генерации и уточнения промптов.
     
     Сигналы:
-        prompt_ready(str, int): Эмитится когда промпт готов к отправке (prompt, chat_id).
+        prompt_ready(str, int, str): Эмитится когда промпт готов к отправке (prompt, chat_id, agent_role).
         refine_requested(): Эмитится при запросе на доработку промпта.
         visibility_changed(bool): Эмитится при изменении видимости виджета.
     """
     
     # Сигналы
-    prompt_ready = pyqtSignal(str, int)  # (prompt_text, target_chat_id)
+    prompt_ready = pyqtSignal(str, int, str)  # (prompt_text, target_chat_id, agent_role)
     refine_requested = pyqtSignal()
     visibility_changed = pyqtSignal(bool)
     
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self._current_chat_id: Optional[int] = None
+        self._current_agent_role: Optional[str] = None
         self._is_visible = False
+        self._prompt_worker: Optional[PromptWorker] = None
         
         self._setup_ui()
         self._apply_styles()
@@ -87,6 +91,17 @@ class PromptEngineerWidget(QWidget):
         chat_layout.addWidget(self.chat_combo)
         
         main_layout.addWidget(chat_group)
+        
+        # Выбор целевой роли (QComboBox)
+        role_group = QGroupBox("Целевая роль агента")
+        role_layout = QVBoxLayout(role_group)
+        
+        self.role_combo = QComboBox()
+        self.role_combo.setMinimumHeight(35)
+        self._populate_role_combo()
+        role_layout.addWidget(self.role_combo)
+        
+        main_layout.addWidget(role_group)
         
         # Сырая идея
         idea_group = QGroupBox("Ваша идея (сырой ввод)")
@@ -128,6 +143,12 @@ class PromptEngineerWidget(QWidget):
         result_layout.addWidget(self.prompt_output)
         
         main_layout.addWidget(result_group)
+        
+        # Индикатор загрузки
+        self.loading_label = QLabel("⏳ Обработка...")
+        self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.loading_label.setVisible(False)
+        main_layout.addWidget(self.loading_label)
         
         # Кнопка отправки в чат
         self.send_btn = QPushButton("📤 Отправить в чат")
@@ -211,58 +232,118 @@ class PromptEngineerWidget(QWidget):
             }
         """)
         
+    def _populate_role_combo(self) -> None:
+        """Заполняет ComboBox ролями агентов."""
+        role_icons = {
+            "ORCHESTRATOR": "🎯",
+            "CSO": "📊",
+            "CFO": "💰",
+            "CHRO": "👥",
+            "GC": "⚖️",
+            "COO": "⚙️",
+            "CMO": "📢",
+            "CPO": "📱",
+            "BOARD": "🏦"
+        }
+        
+        for role in AgentRole:
+            icon = role_icons.get(role.value, "💼")
+            display_name = f"{icon} {role.value}"
+            self.role_combo.addItem(display_name, role.value)
+        
+        # Устанавливаем значение по умолчанию
+        self.role_combo.setCurrentIndex(0)
+    
     def _on_chat_changed(self, index: int) -> None:
         """Обработчик изменения выбранного чата."""
         if index >= 0:
             chat_data = self.chat_combo.itemData(index)
             if chat_data is not None:
                 self._current_chat_id = chat_data
-                
+    
+    def _set_loading(self, loading: bool) -> None:
+        """Устанавливает состояние загрузки."""
+        self.loading_label.setVisible(loading)
+        self.generate_btn.setEnabled(not loading)
+        self.refine_btn.setEnabled(not loading)
+        self.send_btn.setEnabled(not loading and bool(self.prompt_output.toPlainText().strip()))
+    
     def _on_generate_clicked(self) -> None:
         """Обработчик кнопки генерации промпта."""
         idea = self.idea_input.toPlainText().strip()
         if not idea:
             self.idea_input.setFocus()
             return
-            
-        # Здесь будет вызов PromptEngineer.generate_prompt()
-        # Пока эмулируем результат
-        chat_index = self.chat_combo.currentIndex()
-        if chat_index >= 0:
-            chat_data = self.chat_combo.itemData(chat_index)
-            role = self.chat_combo.itemText(chat_index)
-            
-            # Эмуляция генерации (в реальности будет вызов LLM)
-            generated_prompt = f"""[Сгенерированный промпт для: {role}]
-
-Контекст: {idea}
-
-Пожалуйста, предоставьте детальный анализ с учетом вашей роли и компетенции.
-Включите:
-1. Ключевые метрики и показатели
-2. Оценка рисков
-3. Рекомендации к действию
-4. План реализации
-
-Формат ответа: структурированный с заголовками и списками."""
-            
-            self.prompt_output.setPlainText(generated_prompt)
-            self.send_btn.setEnabled(True)
-            
+        
+        # Получаем целевую роль из ComboBox
+        role_index = self.role_combo.currentIndex()
+        if role_index < 0:
+            QMessageBox.warning(self, "Ошибка", "Выберите целевую роль агента")
+            return
+        
+        target_role = self.role_combo.itemData(role_index)
+        self._current_agent_role = target_role
+        
+        # Запускаем PromptWorker в отдельном потоке
+        self._set_loading(True)
+        
+        self._prompt_worker = PromptWorker(
+            idea=idea,
+            target_role=target_role,
+            context=""
+        )
+        
+        self._prompt_worker.finished.connect(self._on_prompt_generated)
+        self._prompt_worker.error.connect(self._on_prompt_error)
+        self._prompt_worker.start()
+    
+    def _on_prompt_generated(self, refined_text: str) -> None:
+        """Обработчик успешной генерации промпта."""
+        self._set_loading(False)
+        self.prompt_output.setPlainText(refined_text)
+        self.send_btn.setEnabled(True)
+    
+    def _on_prompt_error(self, error_msg: str) -> None:
+        """Обработчик ошибки генерации промпта."""
+        self._set_loading(False)
+        QMessageBox.critical(self, "Ошибка генерации промпта", error_msg)
+        # Все равно показываем текст (даже если это сообщение об ошибке)
+        self.prompt_output.setPlainText(error_msg)
+    
     def _on_refine_clicked(self) -> None:
         """Обработчик кнопки доработки промпта."""
         current_prompt = self.prompt_output.toPlainText().strip()
         if not current_prompt:
             return
-            
-        self.refine_requested.emit()
-        # Здесь будет вызов PromptEngineer.refine_prompt()
         
+        # Получаем целевую роль
+        role_index = self.role_combo.currentIndex()
+        if role_index < 0:
+            target_role = "EXPERT"
+        else:
+            target_role = self.role_combo.itemData(role_index)
+        
+        self._set_loading(True)
+        
+        # Запускаем PromptWorker для уточнения
+        self._prompt_worker = PromptWorker(
+            idea=current_prompt,  # Передаем текущий промпт как идею для уточнения
+            target_role=target_role,
+            context=""
+        )
+        
+        self._prompt_worker.finished.connect(self._on_prompt_generated)
+        self._prompt_worker.error.connect(self._on_prompt_error)
+        self._prompt_worker.start()
+        
+        self.refine_requested.emit()
+    
     def _on_send_clicked(self) -> None:
         """Обработчик кнопки отправки в чат."""
         prompt_text = self.prompt_output.toPlainText().strip()
         if prompt_text and self._current_chat_id is not None:
-            self.prompt_ready.emit(prompt_text, self._current_chat_id)
+            role = self._current_agent_role or "EXPERT"
+            self.prompt_ready.emit(prompt_text, self._current_chat_id, role)
             
     def load_chats(self, chats: List[ChatInfo]) -> None:
         """
