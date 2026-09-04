@@ -65,7 +65,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QLabel, QMessageBox, QSplitter, QFrame, QScrollArea, 
     QListWidget, QListWidgetItem, QPushButton, QTextEdit,
-    QComboBox, QGroupBox, QFileDialog, QLineEdit
+    QComboBox, QGroupBox, QFileDialog, QLineEdit, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
 from PyQt6.QtGui import QFont, QIcon
