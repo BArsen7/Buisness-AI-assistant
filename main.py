@@ -148,6 +148,26 @@ QComboBox {
     min-height: 35px;
 }
 
+QComboBox::item {
+    padding: 8px;
+    border-radius: 3px;
+    margin: 2px 0;
+    background-color: white;
+    color: black;
+}
+
+QComboBox::item:hover {
+    background-color: #e3f2fd;
+    color: black;
+    font-weight: bold;
+}
+
+QComboBox::item:selected {
+    background-color: #4a90d9;
+    color: white;
+    font-weight: bold;
+}
+
 QComboBox::drop-down {
     width: 30px;
 }
@@ -471,6 +491,28 @@ class MainWindow(QMainWindow):
         # Splitter для разделения панелей
         splitter = QSplitter(Qt.Orientation.Horizontal)
         
+        # Кнопки управления панелями
+        panel_buttons_widget = QWidget()
+        panel_buttons_layout = QHBoxLayout(panel_buttons_widget)
+        panel_buttons_layout.setContentsMargins(5, 5, 5, 5)
+        panel_buttons_layout.setSpacing(5)
+        
+        # Кнопка сворачивания/разворачивания левой панели
+        self.toggle_projects_btn = QPushButton("◀")
+        self.toggle_projects_btn.setMaximumWidth(30)
+        self.toggle_projects_btn.setToolTip("Свернуть/развернуть панель проектов")
+        self.toggle_projects_btn.clicked.connect(self._toggle_projects_panel)
+        panel_buttons_layout.addWidget(self.toggle_projects_btn)
+        
+        # Кнопка сворачивания/разворачивания правой панели
+        self.toggle_prompt_btn = QPushButton("▶")
+        self.toggle_prompt_btn.setMaximumWidth(30)
+        self.toggle_prompt_btn.setToolTip("Свернуть/развернуть панель промпт-инженера")
+        self.toggle_prompt_btn.clicked.connect(self._toggle_prompt_panel)
+        panel_buttons_layout.addWidget(self.toggle_prompt_btn)
+        
+        main_layout.addWidget(panel_buttons_widget)
+        
         # Левая панель - проекты
         self.project_panel = ProjectListWidget(self.workspace_manager)
         self.project_panel.setMinimumWidth(250)
@@ -486,6 +528,10 @@ class MainWindow(QMainWindow):
         self.prompt_panel.setMinimumWidth(400)
         self.prompt_panel.setMaximumWidth(600)
         splitter.addWidget(self.prompt_panel)
+        
+        # Сохраняем ссылки на панели для переключения
+        self._projects_panel_visible = True
+        self._prompt_panel_visible = True
         
         splitter.setStretchFactor(0, 0)  # Левая панель не растягивается
         splitter.setStretchFactor(1, 1)  # Центральная растягивается
@@ -612,6 +658,32 @@ class MainWindow(QMainWindow):
         
         # Сообщение отправлено из чата
         self.chat_view.message_sent.connect(self._on_message_sent)
+        
+    def _toggle_projects_panel(self):
+        """Сворачивает/разворачивает левую панель проектов."""
+        if self._projects_panel_visible:
+            self.project_panel.setVisible(False)
+            self.toggle_projects_btn.setText("▶")
+            self._projects_panel_visible = False
+            logger.debug("Панель проектов скрыта")
+        else:
+            self.project_panel.setVisible(True)
+            self.toggle_projects_btn.setText("◀")
+            self._projects_panel_visible = True
+            logger.debug("Панель проектов отображена")
+            
+    def _toggle_prompt_panel(self):
+        """Сворачивает/разворачивает правую панель промпт-инженера."""
+        if self._prompt_panel_visible:
+            self.prompt_panel.setVisible(False)
+            self.toggle_prompt_btn.setText("◀")
+            self._prompt_panel_visible = False
+            logger.debug("Панель промпт-инженера скрыта")
+        else:
+            self.prompt_panel.setVisible(True)
+            self.toggle_prompt_btn.setText("▶")
+            self._prompt_panel_visible = True
+            logger.debug("Панель промпт-инженера отображена")
         
     def _refresh_project_list(self):
         """Обновляет список проектов."""
