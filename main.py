@@ -514,35 +514,35 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(panel_buttons_widget)
         
         # Splitter для разделения панелей
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
         
         # Левая панель - проекты
         self.project_panel = ProjectListWidget(self.workspace_manager)
         self.project_panel.setMinimumWidth(250)
         self.project_panel.setMaximumWidth(400)
-        splitter.addWidget(self.project_panel)
+        self.splitter.addWidget(self.project_panel)
         
         # Центральная панель - чат
         self.chat_view = ChatViewWidget(self.workspace_manager)
         self.chat_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        splitter.addWidget(self.chat_view)
+        self.splitter.addWidget(self.chat_view)
         
         # Правая панель - промпт инженер
         self.prompt_panel = self._create_prompt_engineer_panel()
         self.prompt_panel.setMinimumWidth(400)
         self.prompt_panel.setMaximumWidth(600)
         self.prompt_panel.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
-        splitter.addWidget(self.prompt_panel)
+        self.splitter.addWidget(self.prompt_panel)
         
         # Сохраняем ссылки на панели для переключения
         self._projects_panel_visible = True
         self._prompt_panel_visible = True
         
-        splitter.setStretchFactor(0, 0)  # Левая панель не растягивается
-        splitter.setStretchFactor(1, 3)  # Центральная растягивается максимально
-        splitter.setStretchFactor(2, 1)  # Правая панель растягивается по высоте чата
+        self.splitter.setStretchFactor(0, 0)  # Левая панель не растягивается
+        self.splitter.setStretchFactor(1, 3)  # Центральная растягивается максимально
+        self.splitter.setStretchFactor(2, 1)  # Правая панель растягивается по высоте чата
         
-        main_layout.addWidget(splitter)
+        main_layout.addWidget(self.splitter)
         
         # Status bar
         self.statusBar().showMessage("✅ Готов к работе", 5000)
