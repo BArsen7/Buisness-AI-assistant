@@ -102,7 +102,7 @@ QListWidget::item:hover {
 
 QListWidget::item:selected {
     background-color: #4a90d9;
-    color: white;
+    color: black;
     font-weight: bold;
 }
 
@@ -496,7 +496,7 @@ class MainWindow(QMainWindow):
         
         # Кнопка сворачивания/разворачивания левой панели
         self.toggle_projects_btn = QPushButton("◀")
-        self.toggle_projects_btn.setMaximumWidth(30)
+        self.toggle_projects_btn.setFixedSize(30, 30)
         self.toggle_projects_btn.setToolTip("Свернуть/развернуть панель проектов")
         self.toggle_projects_btn.clicked.connect(self._toggle_projects_panel)
         panel_buttons_layout.addWidget(self.toggle_projects_btn)
@@ -506,7 +506,7 @@ class MainWindow(QMainWindow):
         
         # Кнопка сворачивания/разворачивания правой панели
         self.toggle_prompt_btn = QPushButton("▶")
-        self.toggle_prompt_btn.setMaximumWidth(30)
+        self.toggle_prompt_btn.setFixedSize(30, 30)
         self.toggle_prompt_btn.setToolTip("Свернуть/развернуть панель промпт-инженера")
         self.toggle_prompt_btn.clicked.connect(self._toggle_prompt_panel)
         panel_buttons_layout.addWidget(self.toggle_prompt_btn)
@@ -563,14 +563,19 @@ class MainWindow(QMainWindow):
         header.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(header)
         
-        # Выбор роли агента
+        # Выбор роли агента - используем QListWidget вместо QComboBox
         role_group = QGroupBox("Роль агента")
         role_layout = QVBoxLayout(role_group)
         
-        self.role_combo = QComboBox()
-        self._populate_role_combo()
-        role_layout.addWidget(self.role_combo)
+        self.role_list = QListWidget()
+        self.role_list.setMaximumHeight(200)
+        self.role_list.itemClicked.connect(self._on_role_selected)
+        self._populate_role_list()
+        role_layout.addWidget(self.role_list)
         layout.addWidget(role_group)
+        
+        # Храним текущую выбранную роль
+        self._current_agent_role = "ORCHESTRATOR"
         
         # Сырая идея
         idea_group = QGroupBox("Ваша идея (сырой ввод)")
@@ -627,8 +632,9 @@ class MainWindow(QMainWindow):
         
         return panel
         
-    def _populate_role_combo(self):
-        """Заполняет ComboBox ролями агентов с расшифровкой на русском."""
+    def _populate_role_list(self):
+        """Заполняет QListWidget ролями агентов с расшифровкой на русском."""
+        self.role_list.clear()
         role_descriptions = {
             "ORCHESTRATOR": ("🎯", "Координатор — главный управляющий агент"),
             "CSO": ("📊", "CSO — директор по стратегии"),
@@ -644,9 +650,20 @@ class MainWindow(QMainWindow):
         for role in AgentRole:
             icon, description = role_descriptions.get(role.value, ("💼", f"{role.value} — роль"))
             display_name = f"{icon} {description}"
-            self.role_combo.addItem(display_name, role.value)
+            item = QListWidgetItem(display_name)
+            item.setData(Qt.ItemDataRole.UserRole, role.value)
+            self.role_list.addItem(item)
             
-        self.role_combo.setCurrentIndex(0)
+        # Выбираем первый элемент по умолчанию
+        if self.role_list.count() > 0:
+            self.role_list.setCurrentRow(0)
+        
+    def _on_role_selected(self, item: QListWidgetItem):
+        """Обработчик выбора роли."""
+        role = item.data(Qt.ItemDataRole.UserRole)
+        if role:
+            self._current_agent_role = role
+            logger.info(f"Выбрана роль: {role}")
         
     def _connect_signals(self):
         """Подключает сигналы между виджетами."""
@@ -791,19 +808,14 @@ class MainWindow(QMainWindow):
             self.idea_input.setFocus()
             return
             
-        role_index = self.role_combo.currentIndex()
-        if role_index < 0:
-            QMessageBox.warning(self, "Ошибка", "Выберите роль агента")
-            return
-            
-        target_role = self.role_combo.itemData(role_index)
-        logger.info(f"Генерация промпта для роли: {target_role}")
+        role = self._current_agent_role
+        logger.info(f"Генерация промпта для роли: {role}")
         
         self._set_loading(True)
         
         self._prompt_worker = PromptWorker(
             idea=idea,
-            target_role=target_role,
+            target_role=role,
             context=""
         )
         
@@ -832,15 +844,14 @@ class MainWindow(QMainWindow):
             logger.warning("Нет промпта для доработки")
             return
             
-        role_index = self.role_combo.currentIndex()
-        target_role = self.role_combo.itemData(role_index) if role_index >= 0 else "EXPERT"
-        logger.info(f"Доработка промпта для роли: {target_role}")
+        role = self._current_agent_role
+        logger.info(f"Доработка промпта для роли: {role}")
         
         self._set_loading(True)
         
         self._prompt_worker = PromptWorker(
             idea=current_prompt,
-            target_role=target_role,
+            target_role=role,
             context=""
         )
         
@@ -868,8 +879,7 @@ class MainWindow(QMainWindow):
                 return
                 
             # Создаем новый чат
-            role_value = self.role_combo.currentData()
-            agent_role = AgentRole(role_value) if role_value else AgentRole.ORCHESTRATOR
+            agent_role = AgentRole(self._current_agent_role)
             
             chat_name = f"Чат с {agent_role.value}"
             try:
@@ -884,7 +894,7 @@ class MainWindow(QMainWindow):
                 return
                 
         # Эмитим сигнал отправки сообщения
-        self._on_message_sent(prompt_text, self.chat_view._current_chat_id, self.role_combo.currentData())
+        self._on_message_sent(prompt_text, self.chat_view._current_chat_id, self._current_agent_role)
 
 
 def main():
