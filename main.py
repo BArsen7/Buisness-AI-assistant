@@ -524,12 +524,14 @@ class MainWindow(QMainWindow):
         
         # Центральная панель - чат
         self.chat_view = ChatViewWidget(self.workspace_manager)
+        self.chat_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         splitter.addWidget(self.chat_view)
         
         # Правая панель - промпт инженер
         self.prompt_panel = self._create_prompt_engineer_panel()
         self.prompt_panel.setMinimumWidth(400)
         self.prompt_panel.setMaximumWidth(600)
+        self.prompt_panel.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         splitter.addWidget(self.prompt_panel)
         
         # Сохраняем ссылки на панели для переключения
@@ -537,8 +539,8 @@ class MainWindow(QMainWindow):
         self._prompt_panel_visible = True
         
         splitter.setStretchFactor(0, 0)  # Левая панель не растягивается
-        splitter.setStretchFactor(1, 1)  # Центральная растягивается
-        splitter.setStretchFactor(2, 0)  # Правая не растягивается
+        splitter.setStretchFactor(1, 3)  # Центральная растягивается максимально
+        splitter.setStretchFactor(2, 1)  # Правая панель растягивается по высоте чата
         
         main_layout.addWidget(splitter)
         
