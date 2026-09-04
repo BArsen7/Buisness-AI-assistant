@@ -233,26 +233,30 @@ class PromptEngineerWidget(QWidget):
         """)
         
     def _populate_role_combo(self) -> None:
-        """Заполняет ComboBox ролями агентов."""
-        role_icons = {
-            "ORCHESTRATOR": "🎯",
-            "CSO": "📊",
-            "CFO": "💰",
-            "CHRO": "👥",
-            "GC": "⚖️",
-            "COO": "⚙️",
-            "CMO": "📢",
-            "CPO": "📱",
-            "BOARD": "🏦"
+        """Заполняет ComboBox ролями агентов с расшифровкой на русском."""
+        role_descriptions = {
+            "ORCHESTRATOR": ("🎯", "Координатор — главный управляющий агент"),
+            "CSO": ("📊", "CSO — директор по стратегии"),
+            "CFO": ("💰", "CFO — финансовый директор"),
+            "CHRO": ("👥", "CHRO — директор по персоналу"),
+            "GC": ("⚖️", "GC — генеральный counsel (юрист)"),
+            "COO": ("⚙️", "COO — операционный директор"),
+            "CMO": ("📢", "CMO — директор по маркетингу"),
+            "CPO": ("📱", "CPO — директор по продукту"),
+            "BOARD": ("🏦", "BOARD — представитель инвесторов")
         }
         
         for role in AgentRole:
-            icon = role_icons.get(role.value, "💼")
-            display_name = f"{icon} {role.value}"
+            icon, description = role_descriptions.get(role.value, ("💼", f"{role.value} — роль"))
+            display_name = f"{icon} {description}"
             self.role_combo.addItem(display_name, role.value)
         
-        # Устанавливаем значение по умолчанию
-        self.role_combo.setCurrentIndex(0)
+        # Устанавливаем значение по умолчанию (Координатор)
+        orchestrator_index = self.role_combo.findData("ORCHESTRATOR")
+        if orchestrator_index >= 0:
+            self.role_combo.setCurrentIndex(orchestrator_index)
+        else:
+            self.role_combo.setCurrentIndex(0)
     
     def _on_chat_changed(self, index: int) -> None:
         """Обработчик изменения выбранного чата."""
