@@ -697,14 +697,27 @@ class MainWindow(QMainWindow):
     def _toggle_prompt_panel(self):
         """Сворачивает/разворачивает правую панель промпт-инженера."""
         if self._prompt_panel_visible:
+            # Сохраняем текущие размеры сплиттера перед скрытием
+            sizes = self.splitter.sizes()
             self.prompt_panel.setVisible(False)
             self.toggle_prompt_btn.setText("▼")
             self._prompt_panel_visible = False
+            # Восстанавливаем размеры, чтобы чат занял освободившееся место
+            # Устанавливаем размер правой панели в 0, а центральной максимально увеличиваем
+            if len(sizes) >= 3:
+                sizes[2] = 0
+                sizes[1] = sizes[1] + sizes[2]  # Добавляем освободившееся место к чату
+                self.splitter.setSizes(sizes)
             logger.debug("Панель промпт-инженера скрыта")
         else:
             self.prompt_panel.setVisible(True)
             self.toggle_prompt_btn.setText("▲")
             self._prompt_panel_visible = True
+            # Восстанавливаем разумные размеры после отображения
+            total_width = self.splitter.width()
+            # Левая панель ~250, чат ~остальное минус правая, правая ~400
+            new_sizes = [250, max(100, total_width - 650), 400]
+            self.splitter.setSizes(new_sizes)
             logger.debug("Панель промпт-инженера отображена")
         
     def _refresh_project_list(self):
