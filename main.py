@@ -164,7 +164,7 @@ QComboBox::item:hover {
 
 QComboBox::item:selected {
     background-color: #4a90d9;
-    color: white;
+    color: black;
     font-weight: bold;
 }
 
@@ -484,14 +484,11 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         
         # Главный layout
-        main_layout = QHBoxLayout(central_widget)
+        main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
-        # Splitter для разделения панелей
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        
-        # Кнопки управления панелями
+        # Кнопки управления панелями (сверху)
         panel_buttons_widget = QWidget()
         panel_buttons_layout = QHBoxLayout(panel_buttons_widget)
         panel_buttons_layout.setContentsMargins(5, 5, 5, 5)
@@ -504,6 +501,9 @@ class MainWindow(QMainWindow):
         self.toggle_projects_btn.clicked.connect(self._toggle_projects_panel)
         panel_buttons_layout.addWidget(self.toggle_projects_btn)
         
+        # Spacer для центрации кнопок
+        panel_buttons_layout.addStretch()
+        
         # Кнопка сворачивания/разворачивания правой панели
         self.toggle_prompt_btn = QPushButton("▶")
         self.toggle_prompt_btn.setMaximumWidth(30)
@@ -512,6 +512,9 @@ class MainWindow(QMainWindow):
         panel_buttons_layout.addWidget(self.toggle_prompt_btn)
         
         main_layout.addWidget(panel_buttons_widget)
+        
+        # Splitter для разделения панелей
+        splitter = QSplitter(Qt.Orientation.Horizontal)
         
         # Левая панель - проекты
         self.project_panel = ProjectListWidget(self.workspace_manager)
@@ -663,12 +666,12 @@ class MainWindow(QMainWindow):
         """Сворачивает/разворачивает левую панель проектов."""
         if self._projects_panel_visible:
             self.project_panel.setVisible(False)
-            self.toggle_projects_btn.setText("▶")
+            self.toggle_projects_btn.setText("▼")
             self._projects_panel_visible = False
             logger.debug("Панель проектов скрыта")
         else:
             self.project_panel.setVisible(True)
-            self.toggle_projects_btn.setText("◀")
+            self.toggle_projects_btn.setText("▲")
             self._projects_panel_visible = True
             logger.debug("Панель проектов отображена")
             
@@ -676,12 +679,12 @@ class MainWindow(QMainWindow):
         """Сворачивает/разворачивает правую панель промпт-инженера."""
         if self._prompt_panel_visible:
             self.prompt_panel.setVisible(False)
-            self.toggle_prompt_btn.setText("◀")
+            self.toggle_prompt_btn.setText("▼")
             self._prompt_panel_visible = False
             logger.debug("Панель промпт-инженера скрыта")
         else:
             self.prompt_panel.setVisible(True)
-            self.toggle_prompt_btn.setText("▶")
+            self.toggle_prompt_btn.setText("▲")
             self._prompt_panel_visible = True
             logger.debug("Панель промпт-инженера отображена")
         
