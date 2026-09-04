@@ -54,6 +54,7 @@ from PyQt6.QtGui import QFont
 from database import WorkspaceManager
 from ui_widgets import PromptEngineerWidget, ChatInfo
 from models import AgentRole
+from ui.worker import ChatWorker, PromptWorker
 
 
 class MainWindow(QMainWindow):
