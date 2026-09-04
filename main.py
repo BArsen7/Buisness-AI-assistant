@@ -98,6 +98,7 @@ QListWidget::item {
 
 QListWidget::item:hover {
     background-color: #e3f2fd;
+    color: black;
 }
 
 QListWidget::item:selected {
@@ -138,6 +139,7 @@ QTextEdit, QLineEdit, QComboBox {
     font-family: 'Segoe UI', Arial;
     font-size: 13px;
     background-color: white;
+    color: black;
 }
 
 QTextEdit:focus, QLineEdit:focus {
@@ -483,35 +485,17 @@ class MainWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
-        # Главный layout
-        main_layout = QHBoxLayout(central_widget)
+        # Главный layout - вертикальный
+        main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
+        # Верхняя панель с кнопками управления и заголовком чата
+        top_bar = self._create_top_bar()
+        main_layout.addWidget(top_bar)
+        
         # Splitter для разделения панелей
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        
-        # Кнопки управления панелями
-        panel_buttons_widget = QWidget()
-        panel_buttons_layout = QHBoxLayout(panel_buttons_widget)
-        panel_buttons_layout.setContentsMargins(5, 5, 5, 5)
-        panel_buttons_layout.setSpacing(5)
-        
-        # Кнопка сворачивания/разворачивания левой панели
-        self.toggle_projects_btn = QPushButton("◀")
-        self.toggle_projects_btn.setMaximumWidth(30)
-        self.toggle_projects_btn.setToolTip("Свернуть/развернуть панель проектов")
-        self.toggle_projects_btn.clicked.connect(self._toggle_projects_panel)
-        panel_buttons_layout.addWidget(self.toggle_projects_btn)
-        
-        # Кнопка сворачивания/разворачивания правой панели
-        self.toggle_prompt_btn = QPushButton("▶")
-        self.toggle_prompt_btn.setMaximumWidth(30)
-        self.toggle_prompt_btn.setToolTip("Свернуть/развернуть панель промпт-инженера")
-        self.toggle_prompt_btn.clicked.connect(self._toggle_prompt_panel)
-        panel_buttons_layout.addWidget(self.toggle_prompt_btn)
-        
-        main_layout.addWidget(panel_buttons_widget)
         
         # Левая панель - проекты
         self.project_panel = ProjectListWidget(self.workspace_manager)
@@ -546,6 +530,47 @@ class MainWindow(QMainWindow):
         self._connect_signals()
         
         logger.info("UI инициализирован успешно")
+        
+    def _create_top_bar(self) -> QWidget:
+        """Создает верхнюю панель с кнопками управления панелями."""
+        top_bar = QWidget()
+        top_bar.setStyleSheet("background-color: #f5f5f5; border-bottom: 1px solid #d0d0d0;")
+        top_layout = QHBoxLayout(top_bar)
+        top_layout.setContentsMargins(10, 8, 10, 8)
+        top_layout.setSpacing(10)
+        
+        # Кнопки управления панелями слева
+        buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(5)
+        
+        # Кнопка сворачивания/разворачивания левой панели
+        self.toggle_projects_btn = QPushButton("◀")
+        self.toggle_projects_btn.setMaximumWidth(30)
+        self.toggle_projects_btn.setMinimumHeight(28)
+        self.toggle_projects_btn.setToolTip("Свернуть/развернуть панель проектов")
+        self.toggle_projects_btn.clicked.connect(self._toggle_projects_panel)
+        buttons_layout.addWidget(self.toggle_projects_btn)
+        
+        # Кнопка сворачивания/разворачивания правой панели
+        self.toggle_prompt_btn = QPushButton("▶")
+        self.toggle_prompt_btn.setMaximumWidth(30)
+        self.toggle_prompt_btn.setMinimumHeight(28)
+        self.toggle_prompt_btn.setToolTip("Свернуть/развернуть панель промпт-инженера")
+        self.toggle_prompt_btn.clicked.connect(self._toggle_prompt_panel)
+        buttons_layout.addWidget(self.toggle_prompt_btn)
+        
+        top_layout.addLayout(buttons_layout)
+        
+        # Заголовок "Новый чат" по центру
+        self.chat_title_label = QLabel("🆕 Новый чат")
+        self.chat_title_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        self.chat_title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        top_layout.addWidget(self.chat_title_label, 1)  # Stretch factor 1
+        
+        # Пустое пространство справа для баланса
+        top_layout.addStretch()
+        
+        return top_bar
         
     def _create_prompt_engineer_panel(self) -> QWidget:
         """Создает панель промпт-инженера."""
@@ -715,6 +740,10 @@ class MainWindow(QMainWindow):
         logger.info(f"Проект выбран: ID={project_id}")
         self.statusBar().showMessage(f"📁 Проект ID={project_id}", 2000)
         
+        # Обновляем заголовок чата - теперь это "Новый чат" для выбранного проекта
+        self.chat_view.clear_chat()
+        self.chat_title_label.setText("🆕 Новый чат")
+        
     def _on_chat_selected(self, chat_id: int):
         """Чат выбран."""
         logger.info(f"Чат выбран: ID={chat_id}")
@@ -724,6 +753,7 @@ class MainWindow(QMainWindow):
             self.chat_view.set_current_chat_id(chat_id)
             self.chat_view.set_chat_info(chat.name, chat.agent_role.value)
             self.chat_view.load_chat_history(chat_id)
+            self.chat_title_label.setText(f"💬 {chat.name}")
             self.statusBar().showMessage(f"💬 Чат '{chat.name}' загружен", 2000)
             
     def _on_message_sent(self, message: str, chat_id: int, agent_role: str):
