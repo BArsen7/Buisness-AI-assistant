@@ -1,8 +1,1 @@
-```
-# Compiled Python files
-*.pyc
-__pycache__/
-
-# Database file
-open_executive.db
-```
+Nothing should be ignored based on the provided file changes. The only modified file is 'prompt_engineer.py', which is a source code file and should not be added to .gitignore. There are no build artifacts, dependencies, or temporary files in the changes list that would require ignoring.

@@ -109,7 +109,8 @@ class PromptEngineer:
             
         self.client = OpenAI(
             base_url=ollama_base_url,
-            api_key="ollama"  # Ollama не требует реального API key
+            api_key="ollama",  # Ollama не требует реального API key
+            timeout=1200.0  # 20 минут таймаут для запросов
         )
         self.model_name = "qwen2.5:7b"
 
