@@ -136,15 +136,15 @@ def generate_response(
     # Добавляем текущее сообщение
     messages.append({"role": "user", "content": message})
     
-    # Делаем запрос к Ollama API
+    # Делаем запрос к Ollama API (нативный эндпоинт)
     base_url = get_ollama_base_url()
-    api_endpoint = f"{base_url}/v1/chat/completions"
+    api_endpoint = f"{base_url}/api/chat"
     
     try:
         # Таймаут 15 минут (900 секунд)
         with httpx.Client(timeout=900.0) as client:
             if stream:
-                # Стриминговый режим
+                # Стриминговый режим через Ollama streaming API
                 full_response = []
                 with client.stream(
                     "POST",
@@ -152,29 +152,27 @@ def generate_response(
                     json={
                         "model": model,
                         "messages": messages,
-                        "temperature": 0.7,
-                        "max_tokens": 4096,
                         "stream": True
                     }
                 ) as response:
                     response.raise_for_status()
                     for line in response.iter_lines():
-                        if line.startswith("data: "):
-                            data = line[6:]  # Убираем префикс "data: "
-                            if data.strip() == "[DONE]":
+                        if not line.strip():
+                            continue
+                        try:
+                            import json
+                            chunk = json.loads(line)
+                            if "message" in chunk and "content" in chunk["message"]:
+                                content = chunk["message"]["content"]
+                                if content:
+                                    full_response.append(content)
+                                    if callback:
+                                        callback(content)
+                            # Проверяем флаг done для завершения
+                            if chunk.get("done", False):
                                 break
-                            try:
-                                import json
-                                chunk = json.loads(data)
-                                if "choices" in chunk and len(chunk["choices"]) > 0:
-                                    delta = chunk["choices"][0].get("delta", {})
-                                    content = delta.get("content", "")
-                                    if content:
-                                        full_response.append(content)
-                                        if callback:
-                                            callback(content)
-                            except json.JSONDecodeError:
-                                continue
+                        except json.JSONDecodeError:
+                            continue
                 return "".join(full_response).strip()
             else:
                 # Обычный режим
@@ -183,17 +181,15 @@ def generate_response(
                     json={
                         "model": model,
                         "messages": messages,
-                        "temperature": 0.7,
-                        "max_tokens": 4096,
                         "stream": False
                     }
                 )
                 response.raise_for_status()
                 result = response.json()
                 
-                # Извлекаем ответ
-                if "choices" in result and len(result["choices"]) > 0:
-                    return result["choices"][0]["message"]["content"].strip()
+                # Извлекаем ответ из формата Ollama
+                if "message" in result and "content" in result["message"]:
+                    return result["message"]["content"].strip()
                 else:
                     return "[Ошибка: пустой ответ от LLM]"
                 
@@ -245,9 +241,9 @@ def generate_prompt_refinement(
 
 Верни только готовый промпт без дополнительных комментариев.""".format(role=target_role)
     
-    # Делаем запрос к Ollama API
+    # Делаем запрос к Ollama API (нативный эндпоинт)
     base_url = get_ollama_base_url()
-    api_endpoint = f"{base_url}/v1/chat/completions"
+    api_endpoint = f"{base_url}/api/chat"
     
     try:
         # Таймаут 15 минут (900 секунд)
@@ -260,16 +256,14 @@ def generate_prompt_refinement(
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
-                    "temperature": 0.7,
-                    "max_tokens": 4096,
                     "stream": False
                 }
             )
             response.raise_for_status()
             result = response.json()
             
-            if "choices" in result and len(result["choices"]) > 0:
-                return result["choices"][0]["message"]["content"].strip()
+            if "message" in result and "content" in result["message"]:
+                return result["message"]["content"].strip()
             else:
                 return "[Ошибка: пустой ответ от LLM]"
                 
