@@ -69,6 +69,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
 from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtGui import QTextCursor
 
 from database import WorkspaceManager
 from models import AgentRole, Project, Chat as ChatModel
