@@ -68,8 +68,7 @@ from PyQt6.QtWidgets import (
     QComboBox, QGroupBox, QFileDialog, QLineEdit, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
-from PyQt6.QtGui import QFont, QIcon
-from PyQt6.QtGui import QTextCursor
+from PyQt6.QtGui import QFont, QIcon, QTextCursor
 
 from database import WorkspaceManager
 from models import AgentRole, Project, Chat as ChatModel
@@ -417,7 +416,7 @@ class ChatViewWidget(QWidget):
         self.messages_area.append(f"<b>{role_display}</b> <span style='color: gray;'>[{timestamp}]</span>")
         self.messages_area.append(f"<p>{content.replace(chr(10), '<br>')}</p>")
         self.messages_area.append("<hr>")
-        self.messages_area.moveCursor(QTextCursor.End)
+        self.messages_area.moveCursor(QTextCursor.MoveOperation.End)
         
     def set_chat_info(self, chat_name: str, agent_role: str):
         """Устанавливает информацию о текущем чате."""
