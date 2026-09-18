@@ -84,9 +84,7 @@ def generate_response(
     agent_role: str,
     message: str,
     history: List[Dict[str, Any]] = None,
-    model: str = None,
-    stream: bool = False,
-    callback=None
+    model: str = None
 ) -> str:
     """
     Генерирует ответ от агента с указанной ролью.
@@ -98,8 +96,6 @@ def generate_response(
         message: Текущее сообщение пользователя.
         history: История чата (список сообщений в формате {"role": "...", "content": "..."}).
         model: Название модели (по умолчанию из .env).
-        stream: Если True, ответ будет стримиться через callback.
-        callback: Функция обратного вызова для стриминга (принимает фрагмент текста).
         
     Returns:
         str: Текстовый ответ от LLM.
@@ -141,61 +137,25 @@ def generate_response(
     api_endpoint = f"{base_url}/v1/chat/completions"
     
     try:
-        # Таймаут 15 минут (900 секунд)
-        with httpx.Client(timeout=900.0) as client:
-            if stream:
-                # Стриминговый режим
-                full_response = []
-                with client.stream(
-                    "POST",
-                    api_endpoint,
-                    json={
-                        "model": model,
-                        "messages": messages,
-                        "temperature": 0.7,
-                        "max_tokens": 4096,
-                        "stream": True
-                    }
-                ) as response:
-                    response.raise_for_status()
-                    for line in response.iter_lines():
-                        if line.startswith("data: "):
-                            data = line[6:]  # Убираем префикс "data: "
-                            if data.strip() == "[DONE]":
-                                break
-                            try:
-                                import json
-                                chunk = json.loads(data)
-                                if "choices" in chunk and len(chunk["choices"]) > 0:
-                                    delta = chunk["choices"][0].get("delta", {})
-                                    content = delta.get("content", "")
-                                    if content:
-                                        full_response.append(content)
-                                        if callback:
-                                            callback(content)
-                            except json.JSONDecodeError:
-                                continue
-                return "".join(full_response).strip()
+        with httpx.Client(timeout=120.0) as client:
+            response = client.post(
+                api_endpoint,
+                json={
+                    "model": model,
+                    "messages": messages,
+                    "temperature": 0.7,
+                    "max_tokens": 2048,
+                    "stream": False
+                }
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            # Извлекаем ответ
+            if "choices" in result and len(result["choices"]) > 0:
+                return result["choices"][0]["message"]["content"].strip()
             else:
-                # Обычный режим
-                response = client.post(
-                    api_endpoint,
-                    json={
-                        "model": model,
-                        "messages": messages,
-                        "temperature": 0.7,
-                        "max_tokens": 4096,
-                        "stream": False
-                    }
-                )
-                response.raise_for_status()
-                result = response.json()
-                
-                # Извлекаем ответ
-                if "choices" in result and len(result["choices"]) > 0:
-                    return result["choices"][0]["message"]["content"].strip()
-                else:
-                    return "[Ошибка: пустой ответ от LLM]"
+                return "[Ошибка: пустой ответ от LLM]"
                 
     except httpx.HTTPError as e:
         return f"[Ошибка HTTP запроса к Ollama: {str(e)}]"
@@ -250,8 +210,7 @@ def generate_prompt_refinement(
     api_endpoint = f"{base_url}/v1/chat/completions"
     
     try:
-        # Таймаут 15 минут (900 секунд)
-        with httpx.Client(timeout=900.0) as client:
+        with httpx.Client(timeout=60.0) as client:
             response = client.post(
                 api_endpoint,
                 json={
@@ -261,7 +220,7 @@ def generate_prompt_refinement(
                         {"role": "user", "content": user_prompt}
                     ],
                     "temperature": 0.7,
-                    "max_tokens": 4096,
+                    "max_tokens": 1500,
                     "stream": False
                 }
             )

@@ -345,8 +345,6 @@ class ChatViewWidget(QWidget):
         self.workspace_manager = workspace_manager
         self._current_chat_id = None
         self._current_agent_role = None
-        self._is_streaming = False
-        self._streaming_content = ""
         self._setup_ui()
         
     def _setup_ui(self):
@@ -396,45 +394,6 @@ class ChatViewWidget(QWidget):
         export_layout.addStretch()
         layout.addLayout(export_layout)
         
-    def start_streaming_message(self, role: str):
-        """Начинает потоковое добавление сообщения."""
-        self._is_streaming = True
-        self._streaming_content = ""
-        role_display = "👤 Вы" if role == "user" else "🤖 Агент"
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        
-        self.messages_area.append(f"<b>{role_display}</b> <span style='color: gray;'>[{timestamp}]</span>")
-        self.messages_area.append("<p id='streaming-message'>")
-        
-    def append_stream_chunk(self, chunk: str):
-        """Добавляет фрагмент ответа во время стриминга."""
-        if not self._is_streaming:
-            return
-            
-        self._streaming_content += chunk
-        # Находим последний параграф и обновляем его
-        # Для простоты просто добавляем текст в конец
-        cursor = self.messages_area.textCursor()
-        cursor.movePosition(cursor.MoveOperation.End)
-        cursor.insertText(chunk.replace("\n", "<br>"))
-        
-        # Прокрутка вниз
-        scrollbar = self.messages_area.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
-        
-    def finish_streaming_message(self):
-        """Завершает потоковое добавление сообщения."""
-        if not self._is_streaming:
-            return
-            
-        self.messages_area.append("</p>")
-        self.messages_area.append("<hr>")
-        self._is_streaming = False
-        
-        # Прокрутка вниз
-        scrollbar = self.messages_area.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
-        
     def _on_send_clicked(self):
         """Отправка сообщения."""
         message = self.message_input.toPlainText().strip()
@@ -451,10 +410,6 @@ class ChatViewWidget(QWidget):
         
     def add_message(self, role: str, content: str):
         """Добавляет сообщение в чат."""
-        if self._is_streaming:
-            # Если идет стриминг, завершаем его и добавляем полное сообщение
-            self.finish_streaming_message()
-            
         role_display = "👤 Вы" if role == "user" else "🤖 Агент"
         timestamp = datetime.now().strftime("%H:%M:%S")
         
@@ -819,40 +774,35 @@ class MainWindow(QMainWindow):
         # Показываем индикатор "Печатает..."
         self.statusBar().showMessage(f"🤖 Агент {agent_role} печатает...", 0)
         
-        # Начинаем стриминг ответа
-        self.chat_view.start_streaming_message("assistant")
-        
-        # Создаем и запускаем ChatWorker со стримингом
+        # Создаем и запускаем ChatWorker
         worker = ChatWorker(
             project_id=str(self.project_panel.get_current_project_id() or "default"),
             chat_id=str(chat_id),
             agent_role=agent_role,
             message=message,
-            history=[],
-            use_streaming=True
+            history=[]
         )
         
         self._chat_workers.append(worker)
-        worker.stream_chunk.connect(self.chat_view.append_stream_chunk)
         worker.finished.connect(self._on_chat_response)
         worker.error.connect(self._on_chat_error)
         worker.start()
         
-        logger.info("ChatWorker запущен (стриминг включен)")
+        logger.info("ChatWorker запущен")
         
     def _on_chat_response(self, response: str):
         """Ответ от агента получен."""
         logger.info(f"Ответ получен: {response[:100]}...")
         self.statusBar().showMessage("✅ Ответ получен", 3000)
         
-        # Завершаем стриминг
-        self.chat_view.finish_streaming_message()
-        
-        # Сохраняем полный ответ в БД
+        # Сохраняем в БД
         if self.chat_view._current_chat_id:
             self.workspace_manager.add_message(
                 self.chat_view._current_chat_id, "assistant", response
             )
+            
+        # Добавляем в UI
+        self.chat_view.add_message("assistant", response)
         
     def _on_chat_error(self, error_msg: str):
         """Ошибка при получении ответа."""
