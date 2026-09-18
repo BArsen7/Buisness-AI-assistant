@@ -22,12 +22,10 @@ class ChatWorker(QThread):
     Сигналы:
         finished(str): Эмитится при успешном завершении с текстом ответа.
         error(str): Эмитится при возникновении ошибки с описанием проблемы.
-        stream_chunk(str): Эмитится при получении фрагмента ответа (для стриминга).
     """
     
     finished = pyqtSignal(str)
     error = pyqtSignal(str)
-    stream_chunk = pyqtSignal(str)
     
     def __init__(
         self,
@@ -36,7 +34,6 @@ class ChatWorker(QThread):
         agent_role: str,
         message: str,
         history: List[Dict[str, Any]] = None,
-        use_streaming: bool = True,
         parent: Optional[QThread] = None
     ):
         """
@@ -48,7 +45,6 @@ class ChatWorker(QThread):
             agent_role: Роль агента (CEO, CFO, CMO и т.д.).
             message: Текущее сообщение пользователя.
             history: История чата (список сообщений).
-            use_streaming: Если True, использовать стриминг ответов.
             parent: Родительский объект QThread.
         """
         super().__init__(parent)
@@ -57,11 +53,6 @@ class ChatWorker(QThread):
         self.agent_role = agent_role
         self.message = message
         self.history = history if history is not None else []
-        self.use_streaming = use_streaming
-    
-    def _on_stream_chunk(self, chunk: str):
-        """Обработчик фрагмента ответа для стриминга."""
-        self.stream_chunk.emit(chunk)
     
     def run(self) -> None:
         """
@@ -76,9 +67,7 @@ class ChatWorker(QThread):
                 chat_id=self.chat_id,
                 agent_role=self.agent_role,
                 message=self.message,
-                history=self.history,
-                stream=self.use_streaming,
-                callback=self._on_stream_chunk if self.use_streaming else None
+                history=self.history
             )
             
             # Проверяем, не является ли ответ ошибкой
