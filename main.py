@@ -418,7 +418,7 @@ class ChatViewWidget(QWidget):
         self.messages_area.append(f"<b>{role_display}</b> <span style='color: gray;'>[{timestamp}]</span>")
         self.messages_area.append(f"<p>{content.replace(chr(10), '<br>')}</p>")
         self.messages_area.append("<hr>")
-        self.messages_area.scrollToBottom()
+        self.messages_area.verticalScrollBar().setValue(self.messages_area.verticalScrollBar().maximum())
         
     def set_chat_info(self, chat_name: str, agent_role: str):
         """Устанавливает информацию о текущем чате."""
