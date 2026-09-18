@@ -845,7 +845,7 @@ class MainWindow(QMainWindow):
         logger.info(f"Ответ получен: {response[:100]}...")
         self.statusBar().showMessage("✅ Ответ получен", 3000)
         
-        # Завершаем стриминг
+        # Завершаем стриминг (добавляем разделитель)
         self.chat_view.finish_streaming_message()
         
         # Сохраняем полный ответ в БД
