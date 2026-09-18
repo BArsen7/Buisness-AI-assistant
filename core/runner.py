@@ -137,7 +137,7 @@ def generate_response(
     api_endpoint = f"{base_url}/v1/chat/completions"
     
     try:
-        with httpx.Client(timeout=120.0) as client:
+        with httpx.Client(timeout=1200.0) as client:
             response = client.post(
                 api_endpoint,
                 json={
@@ -210,7 +210,7 @@ def generate_prompt_refinement(
     api_endpoint = f"{base_url}/v1/chat/completions"
     
     try:
-        with httpx.Client(timeout=60.0) as client:
+        with httpx.Client(timeout=1200.0) as client:
             response = client.post(
                 api_endpoint,
                 json={
