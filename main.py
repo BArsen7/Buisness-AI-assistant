@@ -9,6 +9,7 @@ import os
 import logging
 from pathlib import Path
 from datetime import datetime
+from typing import Optional
 
 # Настройка логирования в терминал
 logging.basicConfig(
@@ -408,12 +409,14 @@ class ChatViewWidget(QWidget):
         self.message_sent.emit(message, self._current_chat_id, self._current_agent_role or "ORCHESTRATOR")
         self.message_input.clear()
         
-    def add_message(self, role: str, content: str):
+    def add_message(self, role: str, content: str, timestamp: Optional[datetime] = None):
         """Добавляет сообщение в чат."""
         role_display = "👤 Вы" if role == "user" else "🤖 Агент"
-        timestamp = datetime.now().strftime("%H:%M:%S")
+        if timestamp is None:
+            timestamp = datetime.now()
+        time_str = timestamp.strftime("%H:%M:%S")
         
-        self.messages_area.append(f"<b>{role_display}</b> <span style='color: gray;'>[{timestamp}]</span>")
+        self.messages_area.append(f"<b>{role_display}</b> <span style='color: gray;'>[{time_str}]</span>")
         self.messages_area.append(f"<p>{content.replace(chr(10), '<br>')}</p>")
         self.messages_area.append("<hr>")
         self.messages_area.moveCursor(QTextCursor.MoveOperation.End)
@@ -437,7 +440,7 @@ class ChatViewWidget(QWidget):
         
         for msg in messages:
             role = "user" if msg.role == "user" else "assistant"
-            self.add_message(role, msg.content)
+            self.add_message(role, msg.content, msg.timestamp)
             
     def _on_export_pdf(self):
         """Экспорт в PDF."""
